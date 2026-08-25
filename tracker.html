@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>18 个月 AI 转行 · 进度追踪器</title>
+<style>
+  :root { --main:#2563eb; --ok:#16a34a; --bg:#f8fafc; }
+  * { box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", system-ui, sans-serif; background: var(--bg); margin:0; padding:20px; color:#0f172a; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color:#64748b; font-size: 13px; margin-bottom: 16px; }
+  .bar-wrap { background:#e2e8f0; border-radius:8px; height:14px; overflow:hidden; margin:4px 0 8px; }
+  .bar { background:var(--main); height:100%; width:0; transition: width .3s; }
+  .phase { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:12px; }
+  .phase h2 { font-size:15px; margin:0 0 6px; display:flex; justify-content:space-between; }
+  .phase h2 .pct { color:var(--main); font-weight:700; }
+  .week { display:flex; align-items:flex-start; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; }
+  .week:hover { background:#f1f5f9; }
+  .week input { margin-top:3px; accent-color: var(--ok); width:16px; height:16px; cursor:pointer; }
+  .week.done .name { text-decoration: line-through; color:#94a3b8; }
+  .week .wtag { min-width:52px; color:#64748b; font-weight:600; font-size:13px; }
+  .week .name { font-size:14px; }
+  .toolbar { margin: 12px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .btn { border:1px solid #cbd5e1; background:#fff; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .btn:hover { background:#f1f5f9; }
+  .btn.primary { background:var(--main); color:#fff; border-color:var(--main); }
+  .btn.primary:hover { background:#1d4ed8; }
+  #overall { margin: 8px 0 12px; }
+  #checkinCard .stats { display:flex; gap:24px; flex-wrap:wrap; font-size:14px; color:#334155; }
+  #checkinCard .num { font-size:20px; font-weight:800; color:var(--main); }
+  #checkinCard .num.ok { color:var(--ok); }
+  .fire { color:#ea580c; }
+</style>
+</head>
+<body>
+  <h1>18 个月 AI 工程转行 · 进度追踪器</h1>
+  <div class="sub">每日打卡保"别断链"，每周勾选保进度。数据保存在本浏览器（localStorage），无需联网。</div>
+
+  <div id="checkinCard" class="phase">
+    <h2>每日打卡 <span class="pct" id="streakLabel">0 天</span></h2>
+    <div class="stats">
+      <div>🔥 连续 <span class="num ok" id="streakNum">0</span> 天</div>
+      <div>累计 <span class="num" id="checkinTotal">0</span> 天</div>
+      <div>上次打卡 <span id="lastCheckin">-</span></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn primary" id="checkinBtn">✅ 今天打卡</button></div>
+  </div>
+
+  <div id="overall" class="phase">
+    <h2>总进度 <span class="pct" id="overallPct">0%</span></h2>
+    <div class="bar-wrap"><div class="bar" id="overallBar"></div></div>
+  </div>
+
+  <div id="phases"></div>
+
+  <div class="toolbar">
+    <button class="btn" id="saveBtn">💾 保存到文件（下载 JSON）</button>
+    <button class="btn" id="loadBtn">📂 从文件恢复</button>
+    <button class="btn" id="resetBtn">🗑 清空所有进度</button>
+    <input type="file" id="fileInput" accept="application/json" style="display:none">
+  </div>
+
+<script>
+const PHASES = [
+  "阶段0 · 启动破冰（W1-2）",
+  "阶段1 · 地基 + 补代码（W3-12）",
+  "阶段2 · AI 核心原理（W13-22）",
+  "阶段3 · 应用工程实战（W23-38）",
+  "阶段4 · 推理优化与底层（W39-52）",
+  "阶段5 · 求职冲刺（W53-66）",
+  "阶段6 · 入行过渡（W67-78）"
+];
+const WEEKS = [
+ [1,"环境搭建 + 跑通第一个模型"],[2,"Python 基础 + Git + LeetCode 起步"],
+ [3,"Python OOP + pandas 入门(冲刺)"],[4,"numpy + 线代速补"],[5,"数据清洗 + SQL 窗口函数"],
+ [6,"算法专题：数组/哈希/双指针(冲刺)"],[7,"链表/栈/队列/递归"],[8,"二叉树/DFS/BFS"],[9,"排序/二分/复杂度(冲刺)"],
+ [10,"简单题冲刺80+ + 小工具"],[11,"工具打磨 + 第一篇博客"],[12,"阶段复盘：LeetCode 100 题"],
+ [13,"深度学习基础 + 微积分速补"],[14,"PyTorch 跑通 MNIST"],[15,"d2l：线性回归 → softmax"],[16,"MLP/正则化 + 概率(冲刺)"],
+ [17,"CNN + 云GPU实验"],[18,"Transformer 数学（最重要）"],[19,"从零实现 mini Transformer(冲刺)"],
+ [20,"大模型全景 + HuggingFace"],[21,"提示词工程"],[22,"阶段复盘：白板讲 Transformer"],
+ [23,"Ollama 部署 + 对话程序"],[24,"AutoDL + vLLM 部署(冲刺)"],[25,"RAG 原理"],[26,"RAG MVP 文档问答"],
+ [27,"单位项目立项（关键周）"],[28,"RAG 优化与评估(冲刺)"],[29,"Agent 入门：Function Calling"],
+ [30,"Agent 深化：报表自动化"],[31,"微调原理 + LLaMA-Factory(冲刺)"],[32,"领域微调实验"],[33,"项目一期收尾上线"],
+ [34,"演示反馈 + 博客"],[35,"大模型服务工程化"],[36,"系统设计补课(冲刺)"],[37,"项目二期"],[38,"阶段复盘：项目可演示"],
+ [39,"C++ 入门"],[40,"C++ 进阶 + 简易 server"],[41,"GPU/CUDA 基础(冲刺)"],[42,"推理原理深挖"],
+ [43,"量化实践"],[44,"vLLM 深入压测(冲刺)"],[45,"TensorRT-LLM/llama.cpp 对比"],[46,"分布式基础"],
+ [47,"DeepSpeed/FSDP 多卡微调(冲刺)"],[48,"推理服务工程化"],[49,"深读 vLLM 源码"],[50,"深读 + 深度博客(冲刺)"],
+ [51,"CS 八股复习"],[52,"阶段复盘：70B 服务链路"],
+ [53,"岗位调研 50 JD"],[54,"简历重构"],[55,"LeetCode 冲刺 250+(冲刺)"],[56,"大模型面试题库"],[57,"系统设计题训练"],
+ [58,"模拟面试(冲刺)"],[59,"内推启动投递"],[60,"第一轮面试实战"],[61,"面试持续补短板(冲刺)"],[62,"Offer 谈判"],
+ [63,"离职流程启动"],[64,"分叉处理（offer/继续面）"],[65,"过渡收尾作品集"],[66,"阶段复盘：offer 到手"],
+ [67,"入职第1周：30天计划"],[68,"入职第1月：首个任务"],[69,"入职60天：独立交付"],[70,"第二阶段启动（关键决策）"],
+ [71,"公司GPU资源 + 内部分享(冲刺)"],[72,"深读推理代码 + 首个PR"],[73,"第二年成长路线图"],[74,"外部人脉(冲刺)"],
+ [75,"手感保持"],[76,"年度总结博客"],[77,"18个月总复盘"],[78,"三年路线图"]
+];
+
+const key = w => "ai18m_week_" + w;
+let state = {};
+
+function loadState(){
+  state = {};
+  for (let i = 1; i <= 78; i++) {
+    try { state[i] = localStorage.getItem(key(i)) === "1"; } catch(e) { state[i] = false; }
+  }
+}
+function saveState(){
+  for (let i = 1; i <= 78; i++) {
+    try { localStorage.setItem(key(i), state[i] ? "1" : "0"); } catch(e) {}
+  }
+  render();
+}
+function render(){
+  const ph = document.getElementById("phases");
+  ph.innerHTML = "";
+  const groups = {};
+  WEEKS.forEach((wk, idx) => {
+    const w = idx + 1;
+    const p = weekPhase(w);
+    if (!groups[p]) groups[p] = [];
+    groups[p].push({w:w, name:wk[1]});
+  });
+  let doneAll = 0;
+  Object.keys(groups).forEach(p => {
+    const list = groups[p];
+    let done = 0;
+    list.forEach(x => { if (state[x.w]) done++; });
+    const pct = Math.round(done / list.length * 100);
+    doneAll += done;
+    const sec = document.createElement("div");
+    sec.className = "phase";
+    sec.innerHTML = "<h2>" + PHASES[p] + " <span class='pct'>" + pct + "%</span></h2>" +
+      "<div class='bar-wrap'><div class='bar' style='width:" + pct + "%'></div></div>";
+    list.forEach(x => {
+      const row = document.createElement("label");
+      row.className = "week" + (state[x.w] ? " done" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!state[x.w];
+      cb.addEventListener("change", function(){ state[x.w] = cb.checked; row.classList.toggle("done", cb.checked); saveState(); });
+      const tag = document.createElement("span"); tag.className = "wtag"; tag.textContent = "W" + x.w;
+      const name = document.createElement("span"); name.className = "name"; name.textContent = x.name;
+      row.appendChild(cb); row.appendChild(tag); row.appendChild(name);
+      sec.appendChild(row);
+    });
+    ph.appendChild(sec);
+  });
+  const total = (doneAll / 78 * 100).toFixed(1);
+  document.getElementById("overallPct").textContent = total + "%";
+  document.getElementById("overallBar").style.width = total + "%";
+}
+function weekPhase(w){
+  if (w <= 2) return 0;
+  if (w <= 12) return 1;
+  if (w <= 22) return 2;
+  if (w <= 38) return 3;
+  if (w <= 52) return 4;
+  if (w <= 66) return 5;
+  return 6;
+}
+
+// ===== 每日打卡与连续天数 =====
+function fmt(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+function todayStr(){ return fmt(new Date()); }
+function prevStr(s){ const d = new Date(s + "T00:00:00"); d.setDate(d.getDate() - 1); return fmt(d); }
+let checkins = [];
+function loadCheckin(){
+  try { checkins = JSON.parse(localStorage.getItem("ai18m_checkins") || "[]"); } catch(e) { checkins = []; }
+  if (!Array.isArray(checkins)) checkins = [];
+}
+function saveCheckin(){
+  try { localStorage.setItem("ai18m_checkins", JSON.stringify(checkins)); } catch(e) {}
+  renderCheckin();
+}
+function renderCheckin(){
+  const set = new Set(checkins);
+  const today = todayStr();
+  const yest = prevStr(today);
+  const checkedToday = set.has(today);
+  let streak = 0;
+  let cursor = checkedToday ? today : (set.has(yest) ? yest : null);
+  if (cursor) {
+    const d = new Date(cursor + "T00:00:00");
+    while (set.has(fmt(d))) { streak++; d.setDate(d.getDate() - 1); }
+  }
+  document.getElementById("streakNum").textContent = streak;
+  document.getElementById("streakLabel").textContent = streak + " 天";
+  document.getElementById("checkinTotal").textContent = checkins.length;
+  document.getElementById("lastCheckin").textContent = checkins.length ? checkins[checkins.length - 1] : "-";
+  const btn = document.getElementById("checkinBtn");
+  btn.textContent = checkedToday ? "✅ 今天已打卡（点击取消）" : "✅ 今天打卡";
+  if (checkedToday) btn.classList.add("ok");
+}
+function toggleCheckin(){
+  const today = todayStr();
+  const i = checkins.indexOf(today);
+  if (i >= 0) checkins.splice(i, 1); else checkins.push(today);
+  checkins.sort();
+  saveCheckin();
+}
+
+document.getElementById("checkinBtn").addEventListener("click", toggleCheckin);
+document.getElementById("resetBtn").addEventListener("click", function(){
+  if (!confirm("确定清空全部进度（含打卡记录）？")) return;
+  for (let i = 1; i <= 78; i++) state[i] = false;
+  checkins = [];
+  saveState();
+  saveCheckin();
+});
+document.getElementById("saveBtn").addEventListener("click", function(){
+  const data = { savedAt: new Date().toISOString(), weeks: state, checkins: checkins };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ai18m-progress.json";
+  a.click();
+});
+document.getElementById("loadBtn").addEventListener("click", function(){
+  document.getElementById("fileInput").click();
+});
+document.getElementById("fileInput").addEventListener("change", function(e){
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      const data = JSON.parse(ev.target.result);
+      for (let i = 1; i <= 78; i++) state[i] = !!(data.weeks && data.weeks[i]);
+      if (Array.isArray(data.checkins)) checkins = data.checkins;
+      saveState();
+      saveCheckin();
+      alert("恢复成功");
+    } catch(err) { alert("文件格式不对"); }
+  };
+  reader.readAsText(f);
+});
+
+loadState();
+loadCheckin();
+render();
+renderCheckin();
+</script>
+</body>
+</html>
