@@ -1,11 +1,12 @@
-def singleNumber(nums:list[int])->int:
-    set={}
-    for i in range(-1,len(nums)-1,1):
-        if nums[i] in set:
-            set.remove(nums[i])
+def singleNumber(nums):
+    num_set = set()  # ✅ 正确：使用 set() 创建空集合，不要用 {}
+    
+    for i in range(len(nums)):
+        if nums[i] in num_set:
+            num_set.remove(nums[i])
         else:
-            set.add(nums[i])
+            num_set.add(nums[i])  # ✅ 现在是 set 类型了，可以使用 add()
+            
+    return num_set.pop()
 
-    return next(iter(set))
-
-singleNumber([1,2,3,3,2])
+print(singleNumber([1, 2, 3, 3, 2]))  # 输出：1
