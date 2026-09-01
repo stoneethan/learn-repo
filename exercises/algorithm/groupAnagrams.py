@@ -28,6 +28,13 @@ def groupAnagrams(strs):
             count[index]+=1
         groups[tuple(count)].append(s)
 
-    return list(groups.value())
+    return list(groups.values())
 
 groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"])
+
+# 上面的方法是计数法
+# 原则就是记录每一个串的频次表转化为元组（a:1,b:2)作为字典的key
+# 然后加入对应字串就好
+# 注意values()
+# 注意频次表  count[ord(c)-ord('a)]+=1
+# ord是把字符转化为对应数字
