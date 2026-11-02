@@ -1,0 +1,30 @@
+# Private mentor state and local notes
+.LEARNING/
+
+# Pinned upstream repositories used only for reading
+repos/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Java and build output
+target/
+build/
+.gradle/
+
+# Editor and OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
